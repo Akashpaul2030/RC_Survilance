@@ -60,11 +60,18 @@ class AudioClassifier:
                 f"No ONNX model found in {model_dir}. Run export_onnx.py first."
             )
 
-        # Configure session for edge performance
+        # Configure session for edge performance (tuned for Raspberry Pi 5)
         sess_options = ort.SessionOptions()
+        # intra_op: threads used within a single op (e.g. matrix multiply); use all cores
         sess_options.intra_op_num_threads = num_threads
+        # inter_op: threads used to run independent ops in parallel; keep at 1 to
+        # avoid thread-spawn overhead on constrained hardware — sequential is faster here
         sess_options.inter_op_num_threads = 1
+        # ORT_ENABLE_ALL applies constant folding, operator fusion, and memory layout
+        # optimizations at load time so each inference call is as fast as possible
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # Sequential execution avoids the scheduler overhead of the parallel executor;
+        # beneficial on single-board computers where context-switching is expensive
         sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
 
         self.session = ort.InferenceSession(
@@ -115,7 +122,8 @@ class AudioClassifier:
         outputs = self.session.run(None, {self.input_name: input_values})
         logits = outputs[0][0]
 
-        # Softmax
+        # Numerically stable softmax: subtracting max(logits) before exp prevents
+        # overflow when any logit is large, without changing the output distribution
         exp_logits = np.exp(logits - np.max(logits))
         probs = exp_logits / exp_logits.sum()
 
@@ -136,6 +144,10 @@ class AudioClassifier:
         return self.predict(audio, sr)
 
     def predict_bytes(self, audio_bytes: bytes) -> PredictionResult:
-        """Run prediction on raw audio bytes (16-bit PCM, 16kHz, mono)."""
+        """Run prediction on raw audio bytes (16-bit PCM, 16kHz, mono).
+
+        Divides by 32768.0 (2^15) to convert int16 range [-32768, 32767]
+        to float32 range [-1.0, ~1.0], matching the training data normalisation.
+        """
         audio = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
         return self.predict(audio, SAMPLE_RATE)

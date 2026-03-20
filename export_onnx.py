@@ -32,6 +32,9 @@ LABELS = [
 def export_to_onnx(output_dir: str = ONNX_DIR) -> str:
     """Export the HuggingFace model to ONNX format."""
     print(f"[1/3] Exporting {MODEL_ID} to ONNX...")
+    # opset 17 is the minimum required for the AST attention operators;
+    # higher opsets offer more fused kernels but may not be supported by
+    # older ORT versions shipped on some edge distros
     main_export(
         model_name_or_path=MODEL_ID,
         output=output_dir,
@@ -47,6 +50,11 @@ def quantize_int8(onnx_dir: str = ONNX_DIR, output_dir: str = QUANTIZED_DIR) -> 
     """Apply INT8 dynamic quantization to the ONNX model."""
     print("[2/3] Applying INT8 dynamic quantization...")
     quantizer = ORTQuantizer.from_pretrained(onnx_dir)
+    # avx2: targets AVX2 SIMD instructions; ORT falls back gracefully on ARM (Raspberry Pi)
+    # is_static=False: dynamic quantization — weights are quantized offline, activations
+    #   are quantized on-the-fly per inference; no calibration dataset required
+    # per_channel=True: each output channel gets its own scale/zero-point, preserving
+    #   accuracy better than a single per-tensor scale at a small memory cost
     qconfig = AutoQuantizationConfig.avx2(is_static=False, per_channel=True)
     quantizer.quantize(save_dir=output_dir, quantization_config=qconfig)
     print(f"  -> Quantized model saved to {output_dir}")
@@ -66,6 +74,8 @@ def verify_model(quantized_dir: str = QUANTIZED_DIR):
         dummy_audio, sampling_rate=16000, return_tensors="np"
     )
 
+    # optimum names the output "model_quantized.onnx"; fall back to "model.onnx"
+    # when --skip-quantize was used and the FP32 model is being verified directly
     model_path = os.path.join(quantized_dir, "model_quantized.onnx")
     if not os.path.exists(model_path):
         model_path = os.path.join(quantized_dir, "model.onnx")
