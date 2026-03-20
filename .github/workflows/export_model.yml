@@ -1,0 +1,47 @@
+name: Export ONNX Model
+
+on:
+  workflow_dispatch:   # trigger manually from GitHub UI
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: claude/onnx-audio-classifier-deploy-b1Mrn
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (CPU-only torch)
+        run: |
+          pip install --upgrade pip
+          pip install torch==2.2.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers==4.40.2 optimum[onnxruntime]==1.19.1 \
+                      onnxruntime==1.17.3 numpy==1.26.4 librosa==0.10.2
+
+      - name: Export model to ONNX + INT8
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python export_onnx.py
+
+      - name: Show model sizes
+        run: |
+          echo "=== FP32 model ==="
+          ls -lh model_onnx/
+          echo "=== INT8 model ==="
+          ls -lh model_onnx_int8/
+
+      - name: Commit model to branch
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add model_onnx/ model_onnx_int8/
+          git diff --cached --quiet || git commit -m "Add exported ONNX INT8 model [skip ci]"
+          git push origin claude/onnx-audio-classifier-deploy-b1Mrn
