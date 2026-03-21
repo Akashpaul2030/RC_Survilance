@@ -29,6 +29,7 @@ jobs:
       - name: Export model to ONNX + INT8
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HUGGING_FACE_HUB_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python export_onnx.py
 
       - name: Show model sizes

@@ -32,6 +32,7 @@ LABELS = [
 def export_to_onnx(output_dir: str = ONNX_DIR) -> str:
     """Export the HuggingFace model to ONNX format."""
     print(f"[1/3] Exporting {MODEL_ID} to ONNX...")
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     # opset 17 is the minimum required for the AST attention operators;
     # higher opsets offer more fused kernels but may not be supported by
     # older ORT versions shipped on some edge distros
@@ -40,6 +41,7 @@ def export_to_onnx(output_dir: str = ONNX_DIR) -> str:
         output=output_dir,
         task="audio-classification",
         opset=17,
+        token=token,
     )
     onnx_path = os.path.join(output_dir, "model.onnx")
     print(f"  -> ONNX model saved to {onnx_path}")
@@ -66,7 +68,8 @@ def verify_model(quantized_dir: str = QUANTIZED_DIR):
     import onnxruntime as ort
 
     print("[3/3] Verifying quantized model...")
-    feature_extractor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    feature_extractor = AutoFeatureExtractor.from_pretrained(MODEL_ID, token=token)
 
     # Create a dummy 1-second audio signal at 16kHz
     dummy_audio = np.random.randn(16000).astype(np.float32)
