@@ -12,7 +12,9 @@ BRANCH="claude/onnx-audio-classifier-deploy-b1Mrn"
 APP_DIR="/opt/rc-surveillance"
 SERVICE_NAME="rc-surveillance"
 APP_PORT=8000
+HTTPS_PORT=8443
 PYTHON_VERSION="3.11"
+CERT_DIR="/opt/rc-surveillance/certs"
 
 echo "=============================================="
 echo " RC Surveillance — Azure VM Deployment"
@@ -67,8 +69,20 @@ else
     echo "  Model found: $(ls "$MODEL_DIR"/*.onnx)"
 fi
 
-# ── 5. systemd service ────────────────────────────
-echo "[5/6] Installing systemd service..."
+# ── 5a. Generate self-signed SSL certificate ──────
+echo "[5/7] Generating self-signed SSL certificate for HTTPS..."
+apt-get install -y -qq openssl
+mkdir -p "$CERT_DIR"
+PUBLIC_IP=$(curl -sf "https://api.ipify.org" 2>/dev/null || echo "localhost")
+openssl req -x509 -newkey rsa:2048 -keyout "$CERT_DIR/key.pem" \
+    -out "$CERT_DIR/cert.pem" -days 3650 -nodes \
+    -subj "/CN=${PUBLIC_IP}" \
+    -addext "subjectAltName=IP:${PUBLIC_IP}" 2>/dev/null
+chmod 600 "$CERT_DIR/key.pem"
+echo "  SSL cert generated for IP: ${PUBLIC_IP}"
+
+# ── 5b. systemd service ───────────────────────────
+echo "[6/7] Installing systemd service..."
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" << EOF
 [Unit]
 Description=RC Surveillance ONNX Audio Classifier (FastAPI)
@@ -80,7 +94,7 @@ User=azureuser
 WorkingDirectory=${APP_DIR}
 Environment="MODEL_DIR=${APP_DIR}/model_onnx_int8"
 Environment="ORT_NUM_THREADS=4"
-ExecStart=${APP_DIR}/venv/bin/uvicorn app:app --host 0.0.0.0 --port ${APP_PORT} --workers 1
+ExecStart=${APP_DIR}/venv/bin/uvicorn app:app --host 0.0.0.0 --port ${HTTPS_PORT} --workers 1 --ssl-keyfile ${CERT_DIR}/key.pem --ssl-certfile ${CERT_DIR}/cert.pem
 Restart=always
 RestartSec=5
 
@@ -88,26 +102,30 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+chown -R azureuser:azureuser "$CERT_DIR"
 chown -R www-data:www-data "$APP_DIR"
+chown -R azureuser:azureuser "$CERT_DIR"
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 
-# ── 6. Health check ───────────────────────────────
-echo "[6/6] Waiting for service to start..."
-sleep 6
-if curl -sf "http://localhost:${APP_PORT}/health" > /dev/null; then
+# ── 7. Health check ───────────────────────────────
+echo "[7/7] Waiting for service to start..."
+sleep 8
+if curl -sfk "https://localhost:${HTTPS_PORT}/health" > /dev/null; then
     echo ""
     echo "=============================================="
-    echo " Deployment SUCCESSFUL"
+    echo " Deployment SUCCESSFUL — HTTPS ENABLED"
     echo "=============================================="
-    curl -s "http://localhost:${APP_PORT}/health" | python3 -m json.tool
+    curl -sk "https://localhost:${HTTPS_PORT}/health" | python3 -m json.tool
     echo ""
     PUBLIC_IP=$(curl -sf "https://api.ipify.org" 2>/dev/null || echo "<vm-public-ip>")
-    echo "  API base URL : http://${PUBLIC_IP}:${APP_PORT}"
-    echo "  Health check : http://${PUBLIC_IP}:${APP_PORT}/health"
-    echo "  Predict      : POST http://${PUBLIC_IP}:${APP_PORT}/predict  (upload audio file)"
-    echo "  Stream (WS)  : ws://${PUBLIC_IP}:${APP_PORT}/stream"
+    echo ""
+    echo "  Open in phone browser (accept cert warning):"
+    echo "  >>> https://${PUBLIC_IP}:${HTTPS_PORT} <<<"
+    echo ""
+    echo "  NOTE: Azure NSG must allow TCP port ${HTTPS_PORT}"
+    echo "  In Azure Portal: VM → Networking → Add inbound rule → Port ${HTTPS_PORT}"
     echo "=============================================="
 else
     echo "[ERROR] Service did not start. Check logs:"
