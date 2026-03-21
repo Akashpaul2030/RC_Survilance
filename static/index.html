@@ -656,8 +656,15 @@ let animFrame = null;
 let recording = false;
 
 async function startRecording() {
+  // Mic requires HTTPS (or localhost) on Chrome/Safari
+  const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (!isSecure || !navigator.mediaDevices?.getUserMedia) {
+    recordLabel.innerHTML = '⚠ Microphone requires <strong>HTTPS</strong>.<br>Use the Upload tab instead.';
+    toast('Mic unavailable over HTTP — use Upload tab', true);
+    return;
+  }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true } });
     audioCtx = new AudioContext();
     analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = 256;
