@@ -7,6 +7,7 @@ import io
 import os
 import time
 import tempfile
+import subprocess
 from contextlib import asynccontextmanager
 
 import numpy as np
@@ -76,8 +77,19 @@ async def predict(file: UploadFile = File(...)):
     try:
         # Load audio from bytes using librosa
         audio, sr = librosa.load(io.BytesIO(contents), sr=SAMPLE_RATE, mono=True)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid audio file: {e}")
+    except Exception:
+        # soundfile can't decode WebM/Opus (from browser MediaRecorder) — convert via ffmpeg
+        try:
+            proc = subprocess.run(
+                ['ffmpeg', '-i', 'pipe:0', '-f', 'wav',
+                 '-ar', str(SAMPLE_RATE), '-ac', '1', 'pipe:1', '-loglevel', 'quiet'],
+                input=contents, capture_output=True, timeout=30
+            )
+            if proc.returncode != 0 or not proc.stdout:
+                raise ValueError("ffmpeg conversion failed")
+            audio, sr = librosa.load(io.BytesIO(proc.stdout), sr=SAMPLE_RATE, mono=True)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid audio file: {e}")
 
     result = classifier.predict(audio, sr)
 
