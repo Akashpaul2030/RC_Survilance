@@ -1,0 +1,36 @@
+name: Build & Push Docker Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/onnx-audio-classifier-deploy-b1Mrn]
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - '**.py'
+      - 'model_onnx_int8/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/akashpaul2030/rc_survilance:latest

@@ -15,11 +15,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY export_onnx.py inference.py app.py simulate_edge.py ./
+# Copy pre-built INT8 model (exported via CI, no need to re-export)
+COPY model_onnx_int8/ ./model_onnx_int8/
 
-# Export and quantize model at build time
-RUN python export_onnx.py
+# Copy application code
+COPY inference.py app.py simulate_edge.py ./
 
 # Expose port
 EXPOSE 8000
