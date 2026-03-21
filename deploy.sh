@@ -76,7 +76,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
+User=azureuser
 WorkingDirectory=${APP_DIR}
 Environment="MODEL_DIR=${APP_DIR}/model_onnx_int8"
 Environment="ORT_NUM_THREADS=4"
