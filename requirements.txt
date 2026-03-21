@@ -1,7 +1,7 @@
 torch==2.2.2
 torchaudio==2.2.2
 transformers==4.40.2
-onnx==1.15.0
+onnx==1.16.1
 onnxruntime==1.17.3
 onnxruntime-extensions==0.10.1
 optimum[onnxruntime]==1.19.1

@@ -23,7 +23,11 @@ echo "[1/6] Installing system packages..."
 apt-get update -qq
 apt-get install -y -qq \
     git python3 python3-pip python3-venv \
-    libsndfile1 ffmpeg curl
+    libsndfile1 ffmpeg curl cmake build-essential \
+    python3.11 python3.11-venv python3.11-dev 2>/dev/null || \
+apt-get install -y -qq \
+    git python3 python3-pip python3-venv \
+    libsndfile1 ffmpeg curl cmake build-essential
 
 # ── 2. Clone / update repo ────────────────────────
 echo "[2/6] Cloning repository (branch: $BRANCH)..."
@@ -37,7 +41,10 @@ fi
 
 # ── 3. Python virtual environment + deps ──────────
 echo "[3/6] Setting up Python virtual environment..."
-python3 -m venv "$APP_DIR/venv"
+# Prefer python3.11 to avoid onnx build issues on python3.12
+PYTHON_BIN=$(command -v python3.11 || command -v python3)
+echo "  Using Python: $($PYTHON_BIN --version)"
+$PYTHON_BIN -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/pip" install --upgrade pip -q
 
 echo "  Installing PyTorch (CPU-only, saves ~1 GB vs full torch)..."
