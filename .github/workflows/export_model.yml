@@ -46,6 +46,6 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add model_onnx/ model_onnx_int8/
+          git add model_onnx_int8/   # FP32 model is 329MB — over GitHub's 100MB hard limit
           git diff --cached --quiet || git commit -m "Add exported ONNX INT8 model [skip ci]"
           git push origin claude/onnx-audio-classifier-deploy-b1Mrn

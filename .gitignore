@@ -2,6 +2,5 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
-# model dirs are ignored locally but committed by the CI export workflow
-# model_onnx/
-# model_onnx_int8/
+model_onnx/          # FP32 model: 329MB, exceeds GitHub 100MB limit — not committed
+# model_onnx_int8/  # INT8 model: 86MB, committed by CI export workflow
