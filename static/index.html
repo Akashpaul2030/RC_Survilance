@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RC Surveillance — Audio Classifier</title>
+<style>
+  :root {
+    --bg:        #0a0c0f;
+    --surface:   #111418;
+    --card:      #161b22;
+    --border:    #21262d;
+    --accent:    #39d353;
+    --accent-dim:#1a6b27;
+    --danger:    #f85149;
+    --danger-dim:#5a1a18;
+    --warn:      #e3b341;
+    --text:      #c9d1d9;
+    --text-dim:  #6e7681;
+    --radius:    12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    background: var(--accent-dim);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
+  header p  { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+  .status-dot {
+    margin-left: auto;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+    transition: background .3s;
+  }
+  .status-dot.online  { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .status-dot.offline { background: var(--danger); }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .2s, border-color .2s;
+    user-select: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Main scroll area ── */
+  main {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── Panels ── */
+  .panel { display: none; flex-direction: column; gap: 14px; }
+  .panel.active { display: flex; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  /* ── Upload zone ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+  .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(57,211,83,.06);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon { font-size: 36px; margin-bottom: 10px; }
+  .drop-zone p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .drop-zone strong { color: var(--text); }
+
+  /* Selected file chip */
+  .file-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .file-chip.show { display: flex; }
+  .file-chip span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip button {
+    background: none; border: none;
+    color: var(--text-dim); cursor: pointer;
+    font-size: 16px; padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .btn-primary  { background: var(--accent); color: #0a0c0f; }
+  .btn-danger   { background: var(--danger); color: #fff; }
+  .btn-outline  {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  /* ── Record button ── */
+  .record-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+  }
+  .record-btn {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 36px;
+    transition: border-color .2s, background .2s, box-shadow .2s;
+    position: relative;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .record-btn.recording {
+    border-color: var(--danger);
+    background: var(--danger-dim);
+    box-shadow: 0 0 0 0 rgba(248,81,73,.4);
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(248,81,73,.4); }
+    70%  { box-shadow: 0 0 0 20px rgba(248,81,73,0);  }
+    100% { box-shadow: 0 0 0 0   rgba(248,81,73,0);   }
+  }
+  .record-label {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* ── Waveform bar ── */
+  #waveform {
+    display: none;
+    width: 100%;
+    height: 48px;
+    border-radius: 8px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  #waveform.active { display: block; }
+
+  /* ── Result card ── */
+  .result-card {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .result-card.show { display: flex; }
+
+  .result-hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .result-icon {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+  }
+  .result-icon.safe   { background: rgba(57,211,83,.12); }
+  .result-icon.threat { background: rgba(248,81,73,.12); }
+  .result-icon.warn   { background: rgba(227,179,65,.12); }
+
+  .result-label {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+  .result-label.safe   { color: var(--accent); }
+  .result-label.threat { color: var(--danger); }
+  .result-label.warn   { color: var(--warn); }
+
+  .result-conf {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* badges row */
+  .badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: .3px;
+  }
+  .badge-green { background: rgba(57,211,83,.15); color: var(--accent); }
+  .badge-red   { background: rgba(248,81,73,.15); color: var(--danger); }
+  .badge-gray  { background: rgba(110,118,129,.15); color: var(--text-dim); }
+
+  /* ── Score bars ── */
+  .score-list { display: flex; flex-direction: column; gap: 10px; }
+  .score-row  { display: flex; flex-direction: column; gap: 4px; }
+  .score-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .score-name  { color: var(--text); font-weight: 500; }
+  .score-pct   { color: var(--text-dim); }
+  .score-track {
+    height: 6px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .5s cubic-bezier(.4,0,.2,1);
+    width: 0;
+  }
+  .score-fill.top   { background: var(--accent); }
+  .score-fill.threat{ background: var(--danger); }
+  .score-fill.other { background: var(--text-dim); }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    width: 22px; height: 22px;
+    border: 2px solid rgba(57,211,83,.3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  .spinner.show { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    max-width: calc(100vw - 32px);
+    text-align: center;
+    transition: transform .3s ease;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  /* ── History ── */
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    font-size: 13px;
+    border-left: 3px solid var(--border);
+  }
+  .history-item.threat { border-left-color: var(--danger); }
+  .history-item.safe   { border-left-color: var(--accent); }
+  .history-item.warn   { border-left-color: var(--warn);   }
+  .hi-label { flex: 1; font-weight: 600; }
+  .hi-conf  { color: var(--text-dim); }
+  .hi-time  { color: var(--text-dim); font-size: 11px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎙</div>
+  <div>
+    <h1>RC Surveillance</h1>
+    <p>Military Audio Classifier</p>
+  </div>
+  <div class="status-dot" id="statusDot" title="Server status"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="upload">Upload</div>
+  <div class="tab" data-tab="record">Live Record</div>
+  <div class="tab" data-tab="history">History</div>
+</div>
+
+<main>
+
+  <!-- ── UPLOAD PANEL ── -->
+  <div class="panel active" id="panel-upload">
+    <div class="card">
+      <div class="card-title">Audio File</div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a">
+        <div class="drop-icon">🎵</div>
+        <p><strong>Tap to select</strong> or drag & drop<br>WAV · MP3 · FLAC · OGG · M4A</p>
+      </div>
+      <div class="file-chip" id="fileChip">
+        <span>🎵</span>
+        <span id="fileName">—</span>
+        <button id="clearFile">✕</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="analyzeBtn" disabled>
+      <div class="spinner" id="analyzeSpinner"></div>
+      <span id="analyzeBtnText">Analyze Audio</span>
+    </button>
+    <div class="result-card" id="uploadResult"></div>
+  </div>
+
+  <!-- ── RECORD PANEL ── -->
+  <div class="panel" id="panel-record">
+    <div class="card">
+      <div class="card-title">Live Microphone</div>
+      <div class="record-wrap">
+        <button class="record-btn" id="recordBtn">🎙</button>
+        <div class="record-label" id="recordLabel">Tap to start recording</div>
+        <canvas id="waveform"></canvas>
+      </div>
+    </div>
+    <div class="result-card" id="recordResult"></div>
+  </div>
+
+  <!-- ── HISTORY PANEL ── -->
+  <div class="panel" id="panel-history">
+    <div class="card">
+      <div class="card-title">Recent Detections</div>
+      <div class="history-list" id="historyList">
+        <div class="empty-state">No detections yet</div>
+      </div>
+    </div>
+    <button class="btn btn-outline" id="clearHistory">Clear History</button>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';  // same origin — FastAPI serves this page
+
+// ── Label metadata ──
+const LABEL_META = {
+  Communication: { icon:'📡', tier:'safe' },
+  Footsteps:     { icon:'👣', tier:'warn' },
+  Gunshot:       { icon:'💥', tier:'threat' },
+  Shelling:      { icon:'💣', tier:'threat' },
+  Vehicle:       { icon:'🚗', tier:'warn' },
+  Helicopter:    { icon:'🚁', tier:'warn' },
+  Fighter:       { icon:'✈️', tier:'threat' },
+};
+
+// ── Helpers ──
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function formatTime(d) {
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+// ── Health check ──
+async function checkHealth() {
+  const dot = document.getElementById('statusDot');
+  try {
+    const r = await fetch(`${API}/health`);
+    dot.className = r.ok ? 'status-dot online' : 'status-dot offline';
+  } catch {
+    dot.className = 'status-dot offline';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 15000);
+
+// ── Tabs ──
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Build result card HTML ──
+function buildResult(data) {
+  const meta = LABEL_META[data.prediction] || { icon:'❓', tier:'safe' };
+  const conf = Math.round(data.confidence * 100);
+  const latBadge = data.within_budget
+    ? `<span class="badge badge-green">⚡ ${data.latency_ms}ms</span>`
+    : `<span class="badge badge-red">⚠ ${data.latency_ms}ms (slow)</span>`;
+
+  const tierBadgeClass = meta.tier === 'threat' ? 'badge-red' : meta.tier === 'warn' ? '' : 'badge-green';
+  const tierLabel = meta.tier === 'threat' ? '🔴 THREAT DETECTED' : meta.tier === 'warn' ? '🟡 ACTIVITY' : '🟢 CLEAR';
+
+  // Sort scores descending
+  const sorted = Object.entries(data.scores).sort((a,b) => b[1]-a[1]);
+
+  const bars = sorted.map(([label, score]) => {
+    const pct = Math.round(score * 100);
+    const isTop = label === data.prediction;
+    const isThreat = LABEL_META[label]?.tier === 'threat';
+    const fillClass = isTop ? (isThreat ? 'threat' : 'top') : 'other';
+    return `
+      <div class="score-row">
+        <div class="score-head">
+          <span class="score-name">${LABEL_META[label]?.icon || ''} ${label}</span>
+          <span class="score-pct">${pct}%</span>
+        </div>
+        <div class="score-track">
+          <div class="score-fill ${fillClass}" data-width="${pct}"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="result-hero">
+        <div class="result-icon ${meta.tier}">
+          ${meta.icon}
+        </div>
+        <div>
+          <div class="result-label ${meta.tier}">${data.prediction}</div>
+          <div class="result-conf">${conf}% confidence</div>
+        </div>
+      </div>
+      <div class="badges" style="margin-top:12px">
+        <span class="badge ${meta.tier==='threat'?'badge-red':meta.tier==='warn'?'badge-gray':'badge-green'}">${tierLabel}</span>
+        ${latBadge}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">All Scores</div>
+      <div class="score-list">${bars}</div>
+    </div>`;
+}
+
+function animateBars(container) {
+  container.querySelectorAll('.score-fill').forEach(el => {
+    const w = el.dataset.width;
+    requestAnimationFrame(() => {
+      setTimeout(() => { el.style.width = w + '%'; }, 50);
+    });
+  });
+}
+
+// ── History ──
+let history = [];
+function addHistory(data) {
+  const meta = LABEL_META[data.prediction] || { icon:'❓', tier:'safe' };
+  history.unshift({ ...data, meta, time: new Date() });
+  if (history.length > 20) history.pop();
+  renderHistory();
+}
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!history.length) {
+    list.innerHTML = '<div class="empty-state">No detections yet</div>';
+    return;
+  }
+  list.innerHTML = history.map(h => `
+    <div class="history-item ${h.meta.tier}">
+      <span>${h.meta.icon}</span>
+      <span class="hi-label">${h.prediction}</span>
+      <span class="hi-conf">${Math.round(h.confidence*100)}%</span>
+      <span class="hi-time">${formatTime(h.time)}</span>
+    </div>`).join('');
+}
+document.getElementById('clearHistory').addEventListener('click', () => {
+  history = [];
+  renderHistory();
+});
+
+// ── UPLOAD ──
+const fileInput  = document.getElementById('fileInput');
+const dropZone   = document.getElementById('dropZone');
+const fileChip   = document.getElementById('fileChip');
+const fileName   = document.getElementById('fileName');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const analyzeSpinner = document.getElementById('analyzeSpinner');
+const analyzeBtnText = document.getElementById('analyzeBtnText');
+let selectedFile = null;
+
+function setFile(f) {
+  selectedFile = f;
+  fileName.textContent = f.name;
+  fileChip.classList.add('show');
+  dropZone.style.display = 'none';
+  analyzeBtn.disabled = false;
+  document.getElementById('uploadResult').className = 'result-card';
+}
+function clearFile() {
+  selectedFile = null;
+  fileInput.value = '';
+  fileChip.classList.remove('show');
+  dropZone.style.display = '';
+  analyzeBtn.disabled = true;
+  document.getElementById('uploadResult').className = 'result-card';
+}
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+document.getElementById('clearFile').addEventListener('click', clearFile);
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  analyzeBtn.disabled = true;
+  analyzeSpinner.classList.add('show');
+  analyzeBtnText.textContent = 'Analyzing…';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    const res = await fetch(`${API}/predict`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const data = await res.json();
+
+    const resultEl = document.getElementById('uploadResult');
+    resultEl.innerHTML = buildResult(data);
+    resultEl.className = 'result-card show';
+    animateBars(resultEl);
+    addHistory(data);
+    toast(`Detected: ${data.prediction} (${Math.round(data.confidence*100)}%)`);
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeSpinner.classList.remove('show');
+    analyzeBtnText.textContent = 'Analyze Audio';
+  }
+});
+
+// ── RECORD ──
+const recordBtn   = document.getElementById('recordBtn');
+const recordLabel = document.getElementById('recordLabel');
+const waveCanvas  = document.getElementById('waveform');
+let mediaRecorder = null;
+let audioCtx = null;
+let analyserNode = null;
+let animFrame = null;
+let recording = false;
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new AudioContext();
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 256;
+    audioCtx.createMediaStreamSource(stream).connect(analyserNode);
+
+    const chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      await submitRecording(blob);
+    };
+    mediaRecorder.start();
+
+    recording = true;
+    recordBtn.classList.add('recording');
+    recordBtn.textContent = '⏹';
+    recordLabel.textContent = 'Recording… tap to stop';
+    waveCanvas.classList.add('active');
+    drawWaveform();
+  } catch (err) {
+    toast('Microphone access denied', true);
+  }
+}
+
+function stopRecording() {
+  recording = false;
+  mediaRecorder?.stop();
+  cancelAnimationFrame(animFrame);
+  recordBtn.classList.remove('recording');
+  recordBtn.textContent = '🎙';
+  recordLabel.textContent = 'Processing…';
+  waveCanvas.classList.remove('active');
+  audioCtx?.close();
+}
+
+async function submitRecording(blob) {
+  try {
+    const fd = new FormData();
+    fd.append('file', blob, 'recording.webm');
+    const res = await fetch(`${API}/predict`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const data = await res.json();
+
+    const resultEl = document.getElementById('recordResult');
+    resultEl.innerHTML = buildResult(data);
+    resultEl.className = 'result-card show';
+    animateBars(resultEl);
+    addHistory(data);
+    recordLabel.textContent = `Last: ${data.prediction} (${Math.round(data.confidence*100)}%) · Tap to record again`;
+    toast(`Detected: ${data.prediction} (${Math.round(data.confidence*100)}%)`);
+  } catch (err) {
+    recordLabel.textContent = 'Error — tap to try again';
+    toast(err.message, true);
+  }
+}
+
+recordBtn.addEventListener('click', () => {
+  if (!recording) startRecording();
+  else stopRecording();
+});
+
+function drawWaveform() {
+  const ctx = waveCanvas.getContext('2d');
+  const W = waveCanvas.width  = waveCanvas.offsetWidth;
+  const H = waveCanvas.height = 48;
+  const buf = new Uint8Array(analyserNode.frequencyBinCount);
+
+  function draw() {
+    animFrame = requestAnimationFrame(draw);
+    analyserNode.getByteTimeDomainData(buf);
+    ctx.fillStyle = '#161b22';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#39d353';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const step = W / buf.length;
+    buf.forEach((v, i) => {
+      const y = (v / 128) * (H / 2);
+      i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * step, y);
+    });
+    ctx.stroke();
+  }
+  draw();
+}
+</script>
+</body>
+</html>
