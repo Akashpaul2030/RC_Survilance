@@ -181,55 +181,17 @@
     color: var(--text);
   }
 
-  /* ── Record button ── */
-  .record-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 0;
-  }
-  .record-btn {
-    width: 96px; height: 96px;
+  /* ── Loading spinner ── */
+  .spinner {
+    width: 22px; height: 22px;
+    border: 2px solid rgba(57,211,83,.3);
+    border-top-color: var(--accent);
     border-radius: 50%;
-    border: 3px solid var(--border);
-    background: var(--surface);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    font-size: 36px;
-    transition: border-color .2s, background .2s, box-shadow .2s;
-    position: relative;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .record-btn.recording {
-    border-color: var(--danger);
-    background: var(--danger-dim);
-    box-shadow: 0 0 0 0 rgba(248,81,73,.4);
-    animation: pulse 1.4s infinite;
-  }
-  @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0   rgba(248,81,73,.4); }
-    70%  { box-shadow: 0 0 0 20px rgba(248,81,73,0);  }
-    100% { box-shadow: 0 0 0 0   rgba(248,81,73,0);   }
-  }
-  .record-label {
-    font-size: 13px;
-    color: var(--text-dim);
-    text-align: center;
-    line-height: 1.5;
-  }
-
-  /* ── Waveform bar ── */
-  #waveform {
+    animation: spin .7s linear infinite;
     display: none;
-    width: 100%;
-    height: 48px;
-    border-radius: 8px;
-    background: var(--surface);
-    overflow: hidden;
   }
-  #waveform.active { display: block; }
+  .spinner.show { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Result card ── */
   .result-card {
@@ -306,24 +268,12 @@
   .score-fill {
     height: 100%;
     border-radius: 3px;
-    transition: width .5s cubic-bezier(.4,0,.2,1);
+    transition: width .3s cubic-bezier(.4,0,.2,1);
     width: 0;
   }
   .score-fill.top   { background: var(--accent); }
   .score-fill.threat{ background: var(--danger); }
   .score-fill.other { background: var(--text-dim); }
-
-  /* ── Loading spinner ── */
-  .spinner {
-    width: 22px; height: 22px;
-    border: 2px solid rgba(57,211,83,.3);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-    display: none;
-  }
-  .spinner.show { display: inline-block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Toast ── */
   .toast {
@@ -369,9 +319,139 @@
     color: var(--text-dim);
     font-size: 13px;
   }
+
+  /* ── LIVE STREAM specific ── */
+  .live-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    color: var(--danger);
+    text-transform: uppercase;
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    display: none;
+  }
+  .live-dot.active {
+    display: block;
+    animation: livepulse 1s infinite;
+  }
+  @keyframes livepulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: .3; }
+  }
+  .live-timer {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim);
+  }
+
+  #streamWaveform {
+    width: 100%;
+    height: 56px;
+    border-radius: 8px;
+    background: var(--surface);
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  .stream-controls {
+    display: flex;
+    gap: 10px;
+  }
+  .stream-controls .btn { flex: 1; }
+
+  /* live result panel */
+  .live-result {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .live-result.show { display: flex; }
+
+  /* threat flash overlay */
+  .threat-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(248,81,73,.18);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 50;
+  }
+  .threat-flash.flash { opacity: 1; }
+
+  /* rolling feed */
+  .feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .feed-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: 8px;
+    font-size: 12px;
+    border-left: 3px solid var(--border);
+    animation: slideIn .2s ease;
+  }
+  .feed-item.threat { border-left-color: var(--danger); }
+  .feed-item.safe   { border-left-color: var(--accent); }
+  .feed-item.warn   { border-left-color: var(--warn);   }
+  @keyframes slideIn {
+    from { opacity:0; transform: translateY(-6px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  .feed-label { flex: 1; font-weight: 600; }
+  .feed-conf  { color: var(--text-dim); }
+  .feed-time  { color: var(--text-dim); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+  /* ws status pill */
+  .ws-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-weight: 600;
+    background: rgba(110,118,129,.15);
+    color: var(--text-dim);
+  }
+  .ws-status.connected {
+    background: rgba(57,211,83,.12);
+    color: var(--accent);
+  }
+  .ws-status.error {
+    background: rgba(248,81,73,.12);
+    color: var(--danger);
+  }
+  .ws-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
 </style>
 </head>
 <body>
+
+<div class="threat-flash" id="threatFlash"></div>
 
 <header>
   <div class="logo">🎙</div>
@@ -384,7 +464,7 @@
 
 <div class="tabs">
   <div class="tab active" data-tab="upload">Upload</div>
-  <div class="tab" data-tab="record">Live Record</div>
+  <div class="tab" data-tab="stream">Live Stream</div>
   <div class="tab" data-tab="history">History</div>
 </div>
 
@@ -412,17 +492,49 @@
     <div class="result-card" id="uploadResult"></div>
   </div>
 
-  <!-- ── RECORD PANEL ── -->
-  <div class="panel" id="panel-record">
+  <!-- ── LIVE STREAM PANEL ── -->
+  <div class="panel" id="panel-stream">
+
+    <!-- Controls card -->
     <div class="card">
-      <div class="card-title">Live Microphone</div>
-      <div class="record-wrap">
-        <button class="record-btn" id="recordBtn">🎙</button>
-        <div class="record-label" id="recordLabel">Tap to start recording</div>
-        <canvas id="waveform"></canvas>
+      <div class="live-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="live-badge">
+            <div class="live-dot" id="liveDot"></div>
+            <span id="liveLabel">Live Stream</span>
+          </div>
+          <span class="ws-status" id="wsStatus">
+            <span class="ws-dot"></span> Disconnected
+          </span>
+        </div>
+        <span class="live-timer" id="liveTimer">00:00</span>
+      </div>
+
+      <canvas id="streamWaveform"></canvas>
+
+      <div class="stream-controls">
+        <button class="btn btn-primary" id="startStreamBtn">▶ Start</button>
+        <button class="btn btn-danger" id="stopStreamBtn" disabled>⏹ Stop</button>
       </div>
     </div>
-    <div class="result-card" id="recordResult"></div>
+
+    <!-- Live result -->
+    <div class="live-result" id="liveResult">
+      <div class="card" id="liveResultHero"></div>
+      <div class="card">
+        <div class="card-title">All Scores</div>
+        <div class="score-list" id="liveScoreList"></div>
+      </div>
+    </div>
+
+    <!-- Rolling feed -->
+    <div class="card">
+      <div class="card-title">Live Feed</div>
+      <div class="feed-list" id="feedList">
+        <div class="empty-state" id="feedEmpty">Stream not started</div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ── HISTORY PANEL ── -->
@@ -441,7 +553,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API = '';  // same origin — FastAPI serves this page
+const API = '';  // same origin
 
 // ── Label metadata ──
 const LABEL_META = {
@@ -462,10 +574,10 @@ function toast(msg, isError = false) {
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
-
 function formatTime(d) {
   return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 }
+function pad(n) { return String(n).padStart(2,'0'); }
 
 // ── Health check ──
 async function checkHealth() {
@@ -490,21 +602,31 @@ document.querySelectorAll('.tab').forEach(t => {
   });
 });
 
-// ── Build result card HTML ──
-function buildResult(data) {
+// ── Build result HTML ──
+function buildResultHero(data) {
   const meta = LABEL_META[data.prediction] || { icon:'❓', tier:'safe' };
   const conf = Math.round(data.confidence * 100);
   const latBadge = data.within_budget
     ? `<span class="badge badge-green">⚡ ${data.latency_ms}ms</span>`
-    : `<span class="badge badge-red">⚠ ${data.latency_ms}ms (slow)</span>`;
+    : `<span class="badge badge-red">⚠ ${data.latency_ms}ms slow</span>`;
+  const tierLabel = meta.tier === 'threat' ? '🔴 THREAT' : meta.tier === 'warn' ? '🟡 ACTIVITY' : '🟢 CLEAR';
+  return `
+    <div class="result-hero">
+      <div class="result-icon ${meta.tier}">${meta.icon}</div>
+      <div>
+        <div class="result-label ${meta.tier}">${data.prediction}</div>
+        <div class="result-conf">${conf}% confidence</div>
+      </div>
+    </div>
+    <div class="badges" style="margin-top:12px">
+      <span class="badge ${meta.tier==='threat'?'badge-red':meta.tier==='warn'?'badge-gray':'badge-green'}">${tierLabel}</span>
+      ${latBadge}
+    </div>`;
+}
 
-  const tierBadgeClass = meta.tier === 'threat' ? 'badge-red' : meta.tier === 'warn' ? '' : 'badge-green';
-  const tierLabel = meta.tier === 'threat' ? '🔴 THREAT DETECTED' : meta.tier === 'warn' ? '🟡 ACTIVITY' : '🟢 CLEAR';
-
-  // Sort scores descending
+function buildScoreBars(data) {
   const sorted = Object.entries(data.scores).sort((a,b) => b[1]-a[1]);
-
-  const bars = sorted.map(([label, score]) => {
+  return sorted.map(([label, score]) => {
     const pct = Math.round(score * 100);
     const isTop = label === data.prediction;
     const isThreat = LABEL_META[label]?.tier === 'threat';
@@ -512,44 +634,14 @@ function buildResult(data) {
     return `
       <div class="score-row">
         <div class="score-head">
-          <span class="score-name">${LABEL_META[label]?.icon || ''} ${label}</span>
+          <span class="score-name">${LABEL_META[label]?.icon||''} ${label}</span>
           <span class="score-pct">${pct}%</span>
         </div>
         <div class="score-track">
-          <div class="score-fill ${fillClass}" data-width="${pct}"></div>
+          <div class="score-fill ${fillClass}" style="width:${pct}%"></div>
         </div>
       </div>`;
   }).join('');
-
-  return `
-    <div class="card">
-      <div class="result-hero">
-        <div class="result-icon ${meta.tier}">
-          ${meta.icon}
-        </div>
-        <div>
-          <div class="result-label ${meta.tier}">${data.prediction}</div>
-          <div class="result-conf">${conf}% confidence</div>
-        </div>
-      </div>
-      <div class="badges" style="margin-top:12px">
-        <span class="badge ${meta.tier==='threat'?'badge-red':meta.tier==='warn'?'badge-gray':'badge-green'}">${tierLabel}</span>
-        ${latBadge}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">All Scores</div>
-      <div class="score-list">${bars}</div>
-    </div>`;
-}
-
-function animateBars(container) {
-  container.querySelectorAll('.score-fill').forEach(el => {
-    const w = el.dataset.width;
-    requestAnimationFrame(() => {
-      setTimeout(() => { el.style.width = w + '%'; }, 50);
-    });
-  });
 }
 
 // ── History ──
@@ -579,7 +671,9 @@ document.getElementById('clearHistory').addEventListener('click', () => {
   renderHistory();
 });
 
-// ── UPLOAD ──
+// ═══════════════════════════════════════════════════
+//  UPLOAD
+// ═══════════════════════════════════════════════════
 const fileInput  = document.getElementById('fileInput');
 const dropZone   = document.getElementById('dropZone');
 const fileChip   = document.getElementById('fileChip');
@@ -607,7 +701,6 @@ function clearFile() {
 }
 fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
 document.getElementById('clearFile').addEventListener('click', clearFile);
-
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
@@ -622,18 +715,20 @@ analyzeBtn.addEventListener('click', async () => {
   analyzeBtn.disabled = true;
   analyzeSpinner.classList.add('show');
   analyzeBtnText.textContent = 'Analyzing…';
-
   try {
     const fd = new FormData();
     fd.append('file', selectedFile);
     const res = await fetch(`${API}/predict`, { method: 'POST', body: fd });
     if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
     const data = await res.json();
-
     const resultEl = document.getElementById('uploadResult');
-    resultEl.innerHTML = buildResult(data);
+    resultEl.innerHTML = `
+      <div class="card">${buildResultHero(data)}</div>
+      <div class="card">
+        <div class="card-title">All Scores</div>
+        <div class="score-list">${buildScoreBars(data)}</div>
+      </div>`;
     resultEl.className = 'result-card show';
-    animateBars(resultEl);
     addHistory(data);
     toast(`Detected: ${data.prediction} (${Math.round(data.confidence*100)}%)`);
   } catch (err) {
@@ -645,112 +740,242 @@ analyzeBtn.addEventListener('click', async () => {
   }
 });
 
-// ── RECORD ──
-const recordBtn   = document.getElementById('recordBtn');
-const recordLabel = document.getElementById('recordLabel');
-const waveCanvas  = document.getElementById('waveform');
-let mediaRecorder = null;
-let audioCtx = null;
-let analyserNode = null;
-let animFrame = null;
-let recording = false;
+// ═══════════════════════════════════════════════════
+//  LIVE STREAM  (WebSocket + ScriptProcessorNode)
+// ═══════════════════════════════════════════════════
+const SAMPLE_RATE   = 16000;
+const CHUNK_SAMPLES = 16000;   // 1 second of audio per WebSocket message
+const PROC_BUFFER   = 4096;    // ScriptProcessorNode buffer size
 
-async function startRecording() {
-  // Mic requires HTTPS (or localhost) on Chrome/Safari
-  const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  if (!isSecure || !navigator.mediaDevices?.getUserMedia) {
-    recordLabel.innerHTML = '⚠ Microphone requires <strong>HTTPS</strong>.<br>Use the Upload tab instead.';
-    toast('Mic unavailable over HTTP — use Upload tab', true);
+let ws            = null;
+let audioCtx      = null;
+let scriptProc    = null;
+let micStream     = null;
+let sampleBuf     = [];        // accumulate Float32 samples
+let streamActive  = false;
+let timerInterval = null;
+let timerSec      = 0;
+let animFrame     = null;
+let analyserNode  = null;
+let feedItems     = [];
+
+const startBtn   = document.getElementById('startStreamBtn');
+const stopBtn    = document.getElementById('stopStreamBtn');
+const liveDot    = document.getElementById('liveDot');
+const liveLabel  = document.getElementById('liveLabel');
+const liveTimer  = document.getElementById('liveTimer');
+const wsStatusEl = document.getElementById('wsStatus');
+const liveResult = document.getElementById('liveResult');
+const feedList   = document.getElementById('feedList');
+const feedEmpty  = document.getElementById('feedEmpty');
+
+function setWsStatus(state) {
+  wsStatusEl.className = 'ws-status' + (state === 'connected' ? ' connected' : state === 'error' ? ' error' : '');
+  wsStatusEl.innerHTML = `<span class="ws-dot"></span> ${
+    state === 'connected' ? 'Connected' : state === 'error' ? 'Error' : 'Disconnected'
+  }`;
+}
+
+// Float32 → Int16 PCM
+function float32ToInt16(f32) {
+  const out = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) {
+    const s = Math.max(-1, Math.min(1, f32[i]));
+    out[i] = s < 0 ? s * 32768 : s * 32767;
+  }
+  return out;
+}
+
+function sendChunk(samples) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const i16 = float32ToInt16(new Float32Array(samples));
+  ws.send(i16.buffer);
+}
+
+function startTimer() {
+  timerSec = 0;
+  liveTimer.textContent = '00:00';
+  timerInterval = setInterval(() => {
+    timerSec++;
+    liveTimer.textContent = pad(Math.floor(timerSec/60)) + ':' + pad(timerSec%60);
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+function drawStreamWaveform() {
+  const canvas = document.getElementById('streamWaveform');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width  = canvas.offsetWidth;
+  const H = canvas.height = 56;
+
+  if (!analyserNode) {
+    ctx.fillStyle = '#111418';
+    ctx.fillRect(0,0,W,H);
     return;
   }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true } });
-    audioCtx = new AudioContext();
-    analyserNode = audioCtx.createAnalyser();
-    analyserNode.fftSize = 256;
-    audioCtx.createMediaStreamSource(stream).connect(analyserNode);
 
-    const chunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = e => chunks.push(e.data);
-    mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunks, { type: 'audio/webm' });
-      await submitRecording(blob);
-    };
-    mediaRecorder.start();
-
-    recording = true;
-    recordBtn.classList.add('recording');
-    recordBtn.textContent = '⏹';
-    recordLabel.textContent = 'Recording… tap to stop';
-    waveCanvas.classList.add('active');
-    drawWaveform();
-  } catch (err) {
-    toast('Microphone access denied', true);
-  }
-}
-
-function stopRecording() {
-  recording = false;
-  mediaRecorder?.stop();
-  cancelAnimationFrame(animFrame);
-  recordBtn.classList.remove('recording');
-  recordBtn.textContent = '🎙';
-  recordLabel.textContent = 'Processing…';
-  waveCanvas.classList.remove('active');
-  audioCtx?.close();
-}
-
-async function submitRecording(blob) {
-  try {
-    const fd = new FormData();
-    fd.append('file', blob, 'recording.webm');
-    const res = await fetch(`${API}/predict`, { method: 'POST', body: fd });
-    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
-    const data = await res.json();
-
-    const resultEl = document.getElementById('recordResult');
-    resultEl.innerHTML = buildResult(data);
-    resultEl.className = 'result-card show';
-    animateBars(resultEl);
-    addHistory(data);
-    recordLabel.textContent = `Last: ${data.prediction} (${Math.round(data.confidence*100)}%) · Tap to record again`;
-    toast(`Detected: ${data.prediction} (${Math.round(data.confidence*100)}%)`);
-  } catch (err) {
-    recordLabel.textContent = 'Error — tap to try again';
-    toast(err.message, true);
-  }
-}
-
-recordBtn.addEventListener('click', () => {
-  if (!recording) startRecording();
-  else stopRecording();
-});
-
-function drawWaveform() {
-  const ctx = waveCanvas.getContext('2d');
-  const W = waveCanvas.width  = waveCanvas.offsetWidth;
-  const H = waveCanvas.height = 48;
   const buf = new Uint8Array(analyserNode.frequencyBinCount);
-
   function draw() {
+    if (!streamActive) return;
     animFrame = requestAnimationFrame(draw);
     analyserNode.getByteTimeDomainData(buf);
-    ctx.fillStyle = '#161b22';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#111418';
+    ctx.fillRect(0,0,W,H);
     ctx.strokeStyle = '#39d353';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     const step = W / buf.length;
-    buf.forEach((v, i) => {
+    buf.forEach((v,i) => {
       const y = (v / 128) * (H / 2);
-      i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * step, y);
+      i === 0 ? ctx.moveTo(0,y) : ctx.lineTo(i*step, y);
     });
     ctx.stroke();
   }
   draw();
 }
+
+function addFeedItem(data) {
+  const meta = LABEL_META[data.prediction] || { icon:'❓', tier:'safe' };
+  const conf = Math.round(data.confidence * 100);
+  const now  = new Date();
+  feedItems.unshift({ ...data, meta, time: now });
+  if (feedItems.length > 30) feedItems.pop();
+
+  feedEmpty.style.display = 'none';
+  const item = document.createElement('div');
+  item.className = `feed-item ${meta.tier}`;
+  item.innerHTML = `
+    <span>${meta.icon}</span>
+    <span class="feed-label">${data.prediction}</span>
+    <span class="feed-conf">${conf}%</span>
+    <span class="feed-time">${formatTime(now)}</span>`;
+  feedList.insertBefore(item, feedList.firstChild);
+  // keep only 8 visible items in feed
+  while (feedList.children.length > 9) {
+    feedList.removeChild(feedList.lastChild);
+  }
+}
+
+function updateLiveResult(data) {
+  const meta = LABEL_META[data.prediction] || { icon:'❓', tier:'safe' };
+
+  document.getElementById('liveResultHero').innerHTML = buildResultHero(data);
+  document.getElementById('liveScoreList').innerHTML  = buildScoreBars(data);
+  liveResult.classList.add('show');
+
+  // Threat flash
+  if (meta.tier === 'threat') {
+    const flash = document.getElementById('threatFlash');
+    flash.classList.add('flash');
+    setTimeout(() => flash.classList.remove('flash'), 300);
+  }
+
+  addFeedItem(data);
+  addHistory(data);
+}
+
+async function startStream() {
+  const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (!isSecure || !navigator.mediaDevices?.getUserMedia) {
+    toast('Microphone requires HTTPS or localhost', true);
+    return;
+  }
+
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { sampleRate: SAMPLE_RATE, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+  } catch {
+    toast('Microphone access denied', true);
+    return;
+  }
+
+  // WebSocket
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/stream`);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    setWsStatus('connected');
+    toast('Live stream connected');
+  };
+
+  ws.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.error) { toast(data.error, true); return; }
+      updateLiveResult(data);
+    } catch {}
+  };
+
+  ws.onerror = () => { setWsStatus('error'); toast('WebSocket error', true); };
+  ws.onclose = () => {
+    setWsStatus('disconnected');
+    if (streamActive) stopStream();
+  };
+
+  // Audio pipeline
+  audioCtx    = new AudioContext({ sampleRate: SAMPLE_RATE });
+  analyserNode = audioCtx.createAnalyser();
+  analyserNode.fftSize = 256;
+  scriptProc  = audioCtx.createScriptProcessor(PROC_BUFFER, 1, 1);
+  sampleBuf   = [];
+
+  const source = audioCtx.createMediaStreamSource(micStream);
+  source.connect(analyserNode);
+  source.connect(scriptProc);
+  scriptProc.connect(audioCtx.destination);
+
+  scriptProc.onaudioprocess = e => {
+    if (!streamActive) return;
+    const input = e.inputBuffer.getChannelData(0);
+    sampleBuf.push(...input);
+    // When we have 1 full second of samples, send to server
+    while (sampleBuf.length >= CHUNK_SAMPLES) {
+      sendChunk(sampleBuf.splice(0, CHUNK_SAMPLES));
+    }
+  };
+
+  streamActive = true;
+  liveDot.classList.add('active');
+  liveLabel.textContent = 'LIVE';
+  startBtn.disabled = true;
+  stopBtn.disabled  = false;
+  startTimer();
+  drawStreamWaveform();
+}
+
+function stopStream() {
+  streamActive = false;
+
+  scriptProc?.disconnect();
+  audioCtx?.close();
+  micStream?.getTracks().forEach(t => t.stop());
+  ws?.close();
+
+  scriptProc  = null;
+  audioCtx    = null;
+  micStream   = null;
+  ws          = null;
+  sampleBuf   = [];
+  analyserNode = null;
+
+  cancelAnimationFrame(animFrame);
+  stopTimer();
+  setWsStatus('disconnected');
+  liveDot.classList.remove('active');
+  liveLabel.textContent = 'Live Stream';
+  startBtn.disabled = false;
+  stopBtn.disabled  = true;
+  toast('Stream stopped');
+}
+
+startBtn.addEventListener('click', startStream);
+stopBtn.addEventListener('click',  stopStream);
+
 </script>
 </body>
 </html>
